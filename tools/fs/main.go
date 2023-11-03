@@ -47,7 +47,7 @@ func main() {
     router.Use(gin.Recovery())
     router.Use(gin.Logger())
     router.Use(FileLimiter())
-    router.StaticFS("/static", http.Dir("/"))
+    router.StaticFS("/", gin.Dir("/", true))
     router.POST("/upload", func(c *gin.Context) {
         file, err := c.FormFile("file")
         if err != nil {
