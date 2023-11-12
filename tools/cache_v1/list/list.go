@@ -1,4 +1,4 @@
-package cache_v1
+package list
 
 // Element is an element of a linked list.
 type Element[T any] struct {

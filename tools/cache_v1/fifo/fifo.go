@@ -1,14 +1,16 @@
-package cache_v1
+package fifo
 
 import (
     "sync"
+
+    "go-tools/tools/cache_v1/list"
 )
 
 // FIFO TODO: use bucket to improve performance
 type FIFO[K comparable, V any] struct {
     m     sync.Mutex
-    ll    *List[*entry[K, V]]
-    cache map[K]*Element[*entry[K, V]]
+    ll    *list.List[*entry[K, V]]
+    cache map[K]*list.Element[*entry[K, V]]
     size  int
 }
 
@@ -82,8 +84,8 @@ func (L *FIFO[K, V]) Remove(key K) *V {
 
 func NewFIFO[K comparable, V any](size int) *FIFO[K, V] {
     fifo := &FIFO[K, V]{
-        ll:    NewList[*entry[K, V]](),
-        cache: make(map[K]*Element[*entry[K, V]]),
+        ll:    list.NewList[*entry[K, V]](),
+        cache: make(map[K]*list.Element[*entry[K, V]]),
         size:  size,
     }
     for i := 0; i < size; i++ {

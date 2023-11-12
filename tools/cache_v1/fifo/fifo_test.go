@@ -1,4 +1,4 @@
-package cache_v1
+package fifo
 
 import (
     "math/rand"
