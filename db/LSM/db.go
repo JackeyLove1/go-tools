@@ -5,5 +5,5 @@ import (
 )
 
 type DataBase struct {
-    TableTree *ssTable.TableTree
+    TableTree *sstable.TableTree
 }

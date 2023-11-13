@@ -30,7 +30,7 @@
 //
 //     // Initializes the list again to clean up all Element[K, V]s in the list.
 //     list.Init()
-package skiplist
+package memtable
 
 import (
     "fmt"
