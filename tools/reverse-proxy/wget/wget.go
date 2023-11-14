@@ -27,7 +27,9 @@ func parseFileNameFromUrl(remote string) (string, error) {
 }
 
 func main() {
-    url := "http://localhost:8000/Desktop/%E5%9C%A8%20Apple%20Silicon%20Mac%20%E4%B8%8A%E5%85%A5%E9%97%A8%E6%B1%87%E7%BC%96%E8%AF%AD%E8%A8%80.pdf"
+    // url := "http://localhost:8000/.cache/torch/text/datasets/WikiText2/wikitext-2/wiki.test.tokens"
+    // url := "http://localhost:6789/proxy/download/localhost:8000/.cache/torch/text/datasets/WikiText2/wikitext-2/wiki.test.tokens"
+    url := "http://localhost:6789/proxy/download/localhost:8000/Desktop/tmp/randomfile"
     resp, err := http.Get(url)
     if err != nil {
         panic(err)
