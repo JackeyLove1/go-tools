@@ -42,3 +42,7 @@ func InitDB() {
 
     err = db.AutoMigrate()
 }
+
+func GetDB() *gorm.DB {
+    return db
+}

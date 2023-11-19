@@ -3,7 +3,7 @@ package constants
 import (
     "errors"
 
-    "go-tools/tiktok-backend/api"
+    "tiktok-backend/api"
 )
 
 var (

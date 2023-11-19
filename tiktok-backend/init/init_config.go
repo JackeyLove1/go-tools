@@ -220,3 +220,7 @@ func loadRpcSDConf(file *ini.File) {
     RpcSDConf.MessageServiceHost = s.Key("MessageServiceHost").MustString("127.0.0.1")
     RpcSDConf.MessageServicePort = s.Key("MessageServicePort").MustString(":50066")
 }
+
+func GetStdOutLogger() zerolog.Logger {
+    return stdOutLogger
+}
