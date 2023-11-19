@@ -12,7 +12,7 @@ import (
     "github.com/tencentyun/cos-go-sdk-v5"
 )
 
-func TestQCloud(t *testing.T) {
+func TestQCloudBasic(t *testing.T) {
     // Set your bucket URL and credentials
     u, _ := url.Parse("https://<your-bucket-name>.cos.<region>.myqcloud.com")
     b := &cos.BaseURL{BucketURL: u}

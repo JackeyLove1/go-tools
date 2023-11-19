@@ -8,6 +8,7 @@ var (
     bucket *oss.Bucket
 )
 
+// TODO: support Amazon S3,  aliyun oss and qcloud cos
 func InitOSS() {
     client, err := oss.New("https://"+OssConf.Url, OssConf.AccessKeyID, OssConf.AccessKeySecret)
     if err != nil {

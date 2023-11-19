@@ -1,3 +1,4 @@
+//ignore_security_alert_file RCE
 package files
 
 import (
@@ -6,14 +7,16 @@ import (
     "io"
     "mime/multipart"
     "os"
+    "os/exec"
     "path"
     "path/filepath"
+    "runtime"
     "strconv"
     "strings"
     "time"
 
-    "tiktok-backend/init"
-    "tiktok-backend/internal/utils/constants"
+    "ticktok/init"
+    "ticktok/internal/utils/constants"
 )
 
 // PathExists Judge a file is existed or not
@@ -94,4 +97,41 @@ func SaveDataToLocal(savePath string, data *[]byte, filename string) (string, er
     defer out.Close()
     _, err = io.Copy(out, src)
     return fileName, err
+}
+
+// ExtractCoverFromVideo 从视频中截取图像的第一帧
+func ExtractCoverFromVideo(pathVideo, pathImg string) error {
+    binPath := "./third_party/ffmpeg/"
+    if runtime.GOOS == "windows" {
+        binPath += "windows/"
+    } else if runtime.GOOS == "darwin" {
+        binPath += "darwin/"
+    } else {
+        binPath += "linux/"
+    }
+
+    frameExtractionTime := "0"
+    image_mode := "image2"
+    vtime := "0.001"
+
+    // create the command
+    cmd := exec.Command(binPath+"ffmpeg",
+        "-i", pathVideo,
+        "-y",
+        "-f", image_mode,
+        "-ss", frameExtractionTime,
+        "-t", vtime,
+        "-y", pathImg)
+
+    // run the command and don't wait for it to finish. waiting exec is run
+    // fmt.Println(cmd.String())
+    err := cmd.Start()
+    if err != nil {
+        return err
+    }
+    err = cmd.Wait()
+    if err != nil {
+        return err
+    }
+    return nil
 }

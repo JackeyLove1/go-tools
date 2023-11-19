@@ -4,8 +4,8 @@ import (
     "os"
 
     "github.com/rs/zerolog"
-    "tiktok-backend/init"
-    "tiktok-backend/internal/utils/files"
+    "ticktok/init"
+    "ticktok/internal/utils/files"
 )
 
 var GlobalLogger zerolog.Logger

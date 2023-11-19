@@ -4,7 +4,7 @@ import (
     "time"
 
     "github.com/golang-jwt/jwt"
-    "go-tools/tiktok-backend/internal/utils/md5"
+    "ticktok/internal/utils/hashs"
 )
 
 var jwtSecret []byte
@@ -21,8 +21,8 @@ func GenerateToken(username, password string) (string, error) {
     expireTime := nowTime.Add(3 * time.Hour)
 
     claims := Claims{
-        md5.MD5(username),
-        md5.MD5(password),
+        hashs.MD5(username),
+        hashs.MD5(password),
         jwt.StandardClaims{
             ExpiresAt: expireTime.Unix(),
             Issuer:    "gin-blog",

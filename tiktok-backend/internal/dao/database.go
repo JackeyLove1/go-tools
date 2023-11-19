@@ -4,7 +4,7 @@ import (
     "sync"
 
     "gorm.io/gorm"
-    "tiktok-backend/init"
+    "ticktok/init"
 )
 
 var (
