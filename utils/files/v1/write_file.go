@@ -1,10 +1,11 @@
 package main
 
-// go run write_file.go > bigfile.log
+// go run main.go > run.log 1>&2
 import (
     "crypto/md5"
     "fmt"
     "io"
+    "io/ioutil"
     "log"
     "math/rand"
     "os"
@@ -16,28 +17,31 @@ import (
 )
 
 const (
-    WorkName        = "bigfile"
-    Kb              = 1024
-    Mb              = 1024 * Kb
-    Gb              = 1024 * Mb
-    Tb              = 1024 * Gb
-    ChunkSize       = 2 * Mb
-    FixedChar       = "a"
-    FileNameSize    = 20
-    TruncateMaxSize = 8 * Tb
-    Operations      = 100
-    randomStrs      = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+    WorkName              = "bigfile"
+    Kb                    = 1024
+    Mb                    = 1024 * Kb
+    Gb                    = 1024 * Mb
+    Tb                    = 1024 * Gb
+    ChunkSize             = 2 * Mb
+    FixedChar             = "a"
+    PadChar               = "\x00"
+    FileNameSize          = 20
+    TruncateMaxSize int64 = 8 * Tb
+    Operations            = 100
+    randomStrs            = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 )
 
 var (
-    NumberOfGoroutines = 1000
-    FileSize           = 6 * Tb
-    MountDir           = "/mnt/"
-    DataDir            = ""
-    FileName           = ""
-    FilePath           = ""
-    Content            = generateContent(ChunkSize)
-    Local              = true
+    NumberOfGoroutines       = 2000
+    FileSize                 = 6 * Tb
+    MountDir                 = "/mnt"
+    DataDir                  = ""
+    FileName                 = ""
+    FilePath                 = ""
+    Content                  = generateContent(ChunkSize)
+    Local                    = true
+    GlobalSize         int64 = 0 // for single thread truncate and random write
+    ValidSize          int64 = 0
 )
 
 func ExecCommand(op string, args ...string) error {
@@ -125,6 +129,7 @@ func WriteBigFile() {
     if err != nil {
         log.Fatal(fmt.Sprintf("Failed to create file:%s, Error:%s\n", FilePath, err.Error()))
     }
+    log.Printf("Succeed to Create file:%s\n", FilePath)
     defer file.Close()
     semaphore := make(chan struct{}, NumberOfGoroutines)
     var wg sync.WaitGroup
@@ -135,7 +140,7 @@ func WriteBigFile() {
         if err != nil {
             log.Fatal(fmt.Sprintf("Failed to write file:%s, Error:%s", FilePath, err.Error()))
         }
-        log.Printf("Succeed toWrite offset:%d", offset)
+        log.Printf("Succeed to Write file: %s, offset:%d", FilePath, offset)
     }
     if FileSize%ChunkSize != 0 {
         log.Fatalf("FileSize:%d is not a multiple of ChunkSize:%d", FileSize, ChunkSize)
@@ -146,6 +151,7 @@ func WriteBigFile() {
         go writeChunk(file, int64(i*ChunkSize), &wg, semaphore)
     }
     wg.Wait()
+    ValidSize = int64(FileSize)
 }
 
 func CompareMd5() {
@@ -158,21 +164,53 @@ func CompareMd5() {
     }
 }
 
-func truncateSize(size int64) {
-    err := os.Truncate(FilePath, size)
-    failOnErr(err, "Truncate file")
+// Expected all content is GlobalSize * FixedChar
+func isChunkConsistOf(chunk []byte, char byte) bool {
+    for idx, b := range chunk {
+        if b != char {
+            log.Printf("Failed to compare content char, File: %s,idx:%d, actual:%s, expected all:%s \n", FilePath, idx, string(b), string(char))
+            return false
+        }
+    }
+    return true
 }
 
-func randomOffsetWrite(offset int64, nums int) {
+func CompareContent() {
     file, err := os.Open(FilePath)
     failOnErr(err, "Open file")
     defer file.Close()
-    for i := 0; i < nums; i++ {
-        _, err = file.WriteAt([]byte(Content), offset)
-        offset += int64(ChunkSize)
-        failOnErr(err, "random Write file")
-        log.Printf("Succeed to Write offset:%d, chunkSize:%d", offset, ChunkSize)
+    fileInfo, err := file.Stat()
+    failOnErr(err, "Get file info")
+    log.Println("Start to compare content ... ")
+    fileSize := fileInfo.Size()
+    semaphore := make(chan struct{}, NumberOfGoroutines)
+    var wg sync.WaitGroup
+    readChunk := func(file *os.File, offset int64, targetChar byte, wg *sync.WaitGroup, semaphore chan struct{}) {
+        defer wg.Done()
+        defer func() { <-semaphore }()
+        chunk, err := ioutil.ReadAll(io.NewSectionReader(file, offset, int64(ChunkSize)))
+        failOnErr(err, "Read chunk")
+        if !isChunkConsistOf(chunk, targetChar) {
+            log.Fatalf("Failed to compare content, File: %s, offset:%d, actual: %s, expected all:%s \n", FilePath, offset, string(chunk), string(targetChar))
+        }
     }
+    for i := 0; i < int(ValidSize/ChunkSize); i++ {
+        wg.Add(1)
+        semaphore <- struct{}{}
+        go readChunk(file, int64(i*ChunkSize), byte(FixedChar[0]), &wg, semaphore)
+    }
+    for i := int(ValidSize / ChunkSize); i < int(fileSize/ChunkSize); i++ {
+        wg.Add(1)
+        semaphore <- struct{}{}
+        go readChunk(file, int64(i*ChunkSize), byte(PadChar[0]), &wg, semaphore)
+    }
+    wg.Wait()
+    log.Printf("Succeed to compare content, file size:%d, validDataSize:%d\n", fileSize, ValidSize)
+}
+
+func truncateSize(size int64) {
+    err := os.Truncate(FilePath, size)
+    failOnErr(err, "Truncate file")
 }
 
 func AppendWrite(times int) {
@@ -182,7 +220,27 @@ func AppendWrite(times int) {
     fileInfo, _ := file.Stat()
     for i := 0; i < times; i++ {
         file.Write([]byte(Content))
-        log.Printf("Succeed to Append Write offset:%d, chunkSize:%d", fileInfo.Size(), ChunkSize)
+        log.Printf("Succeed to Append Write to file: %s, offset:%d, chunkSize:%d", FileName, fileInfo.Size(), ChunkSize)
+    }
+}
+
+func Max(a, b int64) int64 {
+    if a < b {
+        return b
+    }
+    return a
+}
+
+func RandomOffsetWrite(times int) {
+    file, err := os.OpenFile(FilePath, os.O_WRONLY, 0644)
+    failOnErr(err, "Open file")
+    defer file.Close()
+    offset := rand.Int63() % int64(ValidSize/2)
+    for i := 0; i < times; i++ {
+        _, err = file.WriteAt([]byte(Content), offset)
+        failOnErr(err, "random Write file")
+        ValidSize = Max(ValidSize, offset+int64(ChunkSize))
+        log.Printf("Succeed to Random Write offset:%d, chunkSize:%d\n", offset, ChunkSize)
     }
 }
 
@@ -195,24 +253,46 @@ func truncateSmall(times int) {
         targetSize := fileInfo.Size() - int64(ChunkSize)
         err := os.Truncate(FilePath, targetSize)
         failOnErr(err, fmt.Sprintf("Failed to Truncate file to size:%d", targetSize))
-        log.Printf("Succeed to truncate offset:%d, chunkSize:%d", fileInfo.Size(), ChunkSize)
+        ValidSize = targetSize
+        log.Printf("Succeed to truncate small file:%s truncateSize:%d\n", FileName, targetSize)
+    }
+}
+
+func truncateLarge(times int) {
+    file, err := os.Open(FilePath)
+    failOnErr(err, "Failed to truncateLarge Open file")
+    defer file.Close()
+    fileInfo, _ := file.Stat()
+    for i := 0; i < times; i++ {
+        targetSize := fileInfo.Size() + int64(ChunkSize)
+        if targetSize > TruncateMaxSize {
+            log.Fatalf("Failed to truncateLarge, execeed MaxTruncateSize: %d, targetSize:%d, TruncateMaxSize:%d", TruncateMaxSize,
+                targetSize, TruncateMaxSize)
+        }
+        err = os.Truncate(FilePath, targetSize)
+        failOnErr(err, fmt.Sprintf("Failed to Truncate file to size:%d", targetSize))
+        log.Printf("Succeed to truncate large file:%s truncateSize:%d\n", FileName, targetSize)
     }
 }
 
 func run() {
     WriteBigFile()
-    CompareMd5()
+    CompareContent()
     for i := 0; i < Operations; i++ {
-        AppendWrite(1)
-        CompareMd5()
+        // AppendWrite(1)
+        CompareContent()
         truncateSmall(1)
-        CompareMd5()
+        CompareContent()
+        truncateLarge(1)
+        CompareContent()
+        RandomOffsetWrite(1)
+        CompareContent()
     }
 }
 
 func localTest() {
     NumberOfGoroutines = 10
-    FileSize = 1 * Gb
+    FileSize = 100 * Mb
     run()
 }
 
@@ -238,7 +318,7 @@ func Init() {
 }
 
 func main() {
-    Local = false
+    Local = true
     Init()
     if Local {
         localTest()
