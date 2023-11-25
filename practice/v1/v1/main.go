@@ -3,6 +3,7 @@ package main
 import (
     "context"
     "fmt"
+    "time"
 
     "github.com/redis/go-redis/v9"
 )
@@ -83,6 +84,19 @@ func Hashset(ctx context.Context) {
     }
 }
 
+func SetNX(ctx context.Context) {
+    const key = "nx_key"
+    const value = "nx_value"
+    set, err := rdb.SetNX(ctx, key, value, 10*time.Millisecond).Result()
+    failOnErr(err, "SetNX")
+    println("set:", set)
+    time.Sleep(10 * time.Millisecond)
+    _, err = rdb.Get(ctx, key).Result()
+    if err != redis.Nil {
+        println("failed to get nx_key")
+    }
+}
+
 func main() {
     rdb = redis.NewClient(&redis.Options{
         Addr:     "localhost:6379",
@@ -96,4 +110,5 @@ func main() {
     String(ctx)
     List(ctx)
     Hashset(ctx)
+    SetNX(ctx)
 }
