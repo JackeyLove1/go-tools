@@ -1,0 +1,24 @@
+// protoc --go_out=./idl/student_service  --go_opt=paths=source_relative --go-grpc_out=./idl/student_service --go-grpc_opt=paths=source_relative student_service.proto
+syntax = "proto3";
+
+package idl;
+
+option go_package = ".;student_service";
+// import "google/protobuf/timestamp.proto";
+
+message Student {
+  string id = 1;
+  string name = 2;
+  int32 age = 3;
+  float height = 4;
+  repeated string Locations = 5;
+  map<string, float> scores = 6;
+}
+
+message Request {
+  string StudentId = 1;
+}
+
+service StudentService {
+  rpc GetStudentInfo(Request) returns (Student);
+}
