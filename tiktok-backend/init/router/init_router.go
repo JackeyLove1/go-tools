@@ -2,7 +2,7 @@ package router
 
 import (
     "github.com/gin-gonic/gin"
-    "tiktok-backend/internal/controller"
+    "ticktok/internal/controller"
 )
 
 func InitRouter(r *gin.Engine) {
@@ -16,6 +16,6 @@ func InitRouter(r *gin.Engine) {
     auth := r.Group("/douyin")
     // basic apis
     auth.GET("/user/", controller.UserInfo)
-    auth.POST("/publish/action/", controller.Publish)
-    auth.GET("/publish/list/", controller.PublishList)
+    // auth.POST("/publish/action/", controller.Publish)
+    // auth.GET("/publish/list/", controller.PublishList)
 }
